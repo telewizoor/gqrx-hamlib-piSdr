@@ -159,6 +159,7 @@ while forever:
     rig_freq = getfreq(RIG_PORT)
     if rig_freq != old_rig_freq:
         # set gqrx to Hamlib frequency
+        rc = setfreq(DUMMY_RIG_PORT, float(rig_freq))
         rc = setfreq(GQRX_PORT, float(rig_freq))
         #print('Return Code from GQRX: {0}'.format(rc))
         old_rig_freq = rig_freq
@@ -207,7 +208,7 @@ while forever:
         print('Error :)')
     if rig_vfo != old_rig_vfo:
         # set gqrx to Hamlib vfo
-        # rc = setvfo(DUMMY_RIG_PORT, (rig_vfo))
+        rc = setvfo(DUMMY_RIG_PORT, (rig_vfo))
         rc = setvfo(GQRX_PORT, rig_vfo)
         old_rig_vfo = rig_vfo
 
