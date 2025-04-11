@@ -1,42 +1,3 @@
-# gqrx-hamlib - a gqrx to Hamlib interface to keep frequency
-# between gqrx and a radio in sync when using gqrx as a panadaptor
-# using Hamlib to control the radio
-#
-# The Hamlib daemon (rigctld) must be running, gqrx started with
-# the 'Remote Control via TCP' button clicked and
-# comms to the radio working otherwise an error will occur when
-# starting this program. Ports used are the defaults for gqrx and Hamlib.
-#
-# Return codes from gqrx and Hamlib are printed to stderr
-#
-# This program is written in Python 3.5
-# Python libraries required are:
-#   - socket
-#   - sys
-#   - getopt
-#   - time
-#   - xmlrpc.client
-#
-# To run it type the following on the command line in the directory where
-# you have placed this file:
-#   python3.5 ./gqrx-hamlib-fldigi.py [-f]
-#
-# The -f option will cause the program to tune fldigi to the gqrx frequency.
-#
-# Copyright 2017 Simon Kennedy, G0FCU, g0fcu at g0fcu.com
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import socket
 import sys, getopt
 import time
@@ -57,6 +18,7 @@ if fldigi_option_set == 1:
 
 TCP_IP = "localhost"
 RIG_PORT = 4532
+DUMMY_RIG_PORT = 4534
 GQRX_PORT = 7356
 FLDIGI_PORT = 7362
 
@@ -135,7 +97,7 @@ def setmode(PORT, mode):
     server_address = (TCP_IP, PORT)
     sock.connect(server_address)
     mode = mode.decode('utf-8')
-    build_msg = 'M ' + str(mode) + ' 0' + '\n'
+    build_msg = 'M ' + str(mode) + '\n'
     build_msg = build_msg.encode('utf-8')
     #print(build_msg)
     sock.sendall(build_msg)
@@ -205,6 +167,7 @@ while forever:
     gqrx_freq = getfreq(GQRX_PORT)
     if gqrx_freq != old_gqrx_freq:
         # set Hamlib to gqrx frequency
+        rc = setfreq(DUMMY_RIG_PORT, float(gqrx_freq))
         rc = setfreq(RIG_PORT, float(gqrx_freq))
         #print('Return Code from Hamlib: {0}'.format(rc))
         # Set fldigi to gqrx frequency
@@ -220,6 +183,7 @@ while forever:
         print('Error :)')
     if rig_mode != old_rig_mode:
         # set gqrx to Hamlib mode
+        rc = setmode(DUMMY_RIG_PORT, (rig_mode))
         rc = setmode(GQRX_PORT, (rig_mode))
         #print('Return Code from GQRX: {0}'.format(rc))
         old_rig_mode = rig_mode
@@ -243,6 +207,7 @@ while forever:
         print('Error :)')
     if rig_vfo != old_rig_vfo:
         # set gqrx to Hamlib vfo
+        # rc = setvfo(DUMMY_RIG_PORT, (rig_vfo))
         rc = setvfo(GQRX_PORT, rig_vfo)
         old_rig_vfo = rig_vfo
 
