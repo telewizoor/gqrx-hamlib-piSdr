@@ -39,6 +39,10 @@ old_gqrx_mode = ''
 rig_vfo = ''
 old_rig_vfo = ''
 
+dummy_rig_vfo = ''
+
+print('START')
+
 def getfreq(PORT):
     sock = socket.socket(socket.AF_INET, 
                      socket.SOCK_STREAM) 
@@ -153,6 +157,7 @@ if fldigi_option_set == 1:
     server = xmlrpc.client.ServerProxy('http://{}:{}/'.format(TCP_IP, FLDIGI_PORT))
 
 while forever:
+    sys.stdout.flush()
     time.sleep(0.1)
 
     # FREQ
@@ -181,7 +186,7 @@ while forever:
     try:
         rig_mode = getmode(RIG_PORT)
     except:
-        print('Error :)')
+        print('Error rig_mode = getmode(RIG_PORT)')
     if rig_mode != old_rig_mode:
         # set gqrx to Hamlib mode
         rc = setmode(DUMMY_RIG_PORT, (rig_mode))
@@ -204,11 +209,14 @@ while forever:
     # VFO
     try:
         rig_vfo = getvfo(RIG_PORT)
-    except:
-        print('Error :)')
+        # print('rig VFO read: ' + str(rig_vfo))
+        dummy_rig_vfo = getvfo(DUMMY_RIG_PORT)
+        # print('dummy rig VFO read: ' + str(dummy_rig_vfo))
+    except Exception as error:
+        print('Error getvfo(RIG_PORT): ', type(error).__name__, "–", error)
     if rig_vfo != old_rig_vfo:
         # set gqrx to Hamlib vfo
-        rc = setvfo(DUMMY_RIG_PORT, (rig_vfo))
+        rc = setvfo(DUMMY_RIG_PORT, rig_vfo)
         rc = setvfo(GQRX_PORT, rig_vfo)
         old_rig_vfo = rig_vfo
 
