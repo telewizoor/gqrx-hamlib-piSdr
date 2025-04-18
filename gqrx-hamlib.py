@@ -1,6 +1,8 @@
 import socket
-import sys, getopt
+import os, sys, getopt
 import time
+import traceback
+from datetime import datetime
 fldigi_option_set = 0
 
 if len(sys.argv) > 0:
@@ -21,6 +23,7 @@ RIG_PORT = 4532
 DUMMY_RIG_PORT = 4534
 GQRX_PORT = 7356
 FLDIGI_PORT = 7362
+REQUEST_PERIOD = 0.25
 
 MESSAGE = ""
 
@@ -42,6 +45,14 @@ old_rig_vfo = ''
 dummy_rig_vfo = ''
 
 print('START')
+
+def log_error(e):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_path = os.path.join(script_dir, "error_log.txt")
+    
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"[{now}] Error: {type(e).__name__}: {e}\n")
 
 def getfreq(PORT):
     sock = socket.socket(socket.AF_INET, 
@@ -157,54 +168,59 @@ if fldigi_option_set == 1:
     server = xmlrpc.client.ServerProxy('http://{}:{}/'.format(TCP_IP, FLDIGI_PORT))
 
 while forever:
-    sys.stdout.flush()
-    time.sleep(0.1)
+    time.sleep(REQUEST_PERIOD)
 
     # FREQ
-    rig_freq = getfreq(RIG_PORT)
-    if rig_freq != old_rig_freq:
-        # set gqrx to Hamlib frequency
-        rc = setfreq(DUMMY_RIG_PORT, float(rig_freq))
-        rc = setfreq(GQRX_PORT, float(rig_freq))
-        #print('Return Code from GQRX: {0}'.format(rc))
-        old_rig_freq = rig_freq
-        old_gqrx_freq = rig_freq
-        
-    gqrx_freq = getfreq(GQRX_PORT)
-    if gqrx_freq != old_gqrx_freq:
-        # set Hamlib to gqrx frequency
-        rc = setfreq(DUMMY_RIG_PORT, float(gqrx_freq))
-        rc = setfreq(RIG_PORT, float(gqrx_freq))
-        #print('Return Code from Hamlib: {0}'.format(rc))
-        # Set fldigi to gqrx frequency
-        if fldigi_option_set == 1:
-            server.main.set_frequency(float(gqrx_freq))
-        old_gqrx_freq = gqrx_freq
-        old_rig_freq = gqrx_freq
+    try:
+        rig_freq = getfreq(RIG_PORT)
+        if rig_freq != old_rig_freq:
+            # set gqrx to Hamlib frequency
+            rc = setfreq(DUMMY_RIG_PORT, float(rig_freq))
+            rc = setfreq(GQRX_PORT, float(rig_freq))
+            #print('Return Code from GQRX: {0}'.format(rc))
+            old_rig_freq = rig_freq
+            old_gqrx_freq = rig_freq
+            
+        gqrx_freq = getfreq(GQRX_PORT)
+        if gqrx_freq != old_gqrx_freq:
+            # set Hamlib to gqrx frequency
+            rc = setfreq(DUMMY_RIG_PORT, float(gqrx_freq))
+            rc = setfreq(RIG_PORT, float(gqrx_freq))
+            #print('Return Code from Hamlib: {0}'.format(rc))
+            # Set fldigi to gqrx frequency
+            if fldigi_option_set == 1:
+                server.main.set_frequency(float(gqrx_freq))
+            old_gqrx_freq = gqrx_freq
+            old_rig_freq = gqrx_freq
+    except Exception as error:
+        log_error(f"Error: {str(error)}")
+        sys.exit()
 
     # MODE
     try:
         rig_mode = getmode(RIG_PORT)
-    except:
-        print('Error rig_mode = getmode(RIG_PORT)')
-    if rig_mode != old_rig_mode:
-        # set gqrx to Hamlib mode
-        rc = setmode(DUMMY_RIG_PORT, (rig_mode))
-        rc = setmode(GQRX_PORT, (rig_mode))
-        #print('Return Code from GQRX: {0}'.format(rc))
-        old_rig_mode = rig_mode
-        old_gqrx_mode = rig_mode
 
-    gqrx_mode = getmode(GQRX_PORT)
-    if gqrx_mode != old_gqrx_mode:
-        # set Hamlib to gqrx mode
-        #rc = setmode(RIG_PORT, (gqrx_mode))
-        #print('Return Code from Hamlib: {0}'.format(rc))
-        # # Set fldigi to gqrx frequency
-        # if fldigi_option_set == 1:
-        #     server.main.set_frequency((gqrx_mode))
-        old_gqrx_mode = gqrx_mode
-        old_rig_mode = gqrx_mode
+        if rig_mode != old_rig_mode:
+            # set gqrx to Hamlib mode
+            rc = setmode(DUMMY_RIG_PORT, rig_mode)
+            rc = setmode(GQRX_PORT, rig_mode)
+            #print('Return Code from GQRX: {0}'.format(rc))
+            old_rig_mode = rig_mode
+            old_gqrx_mode = rig_mode
+
+        gqrx_mode = getmode(GQRX_PORT)
+        if gqrx_mode != old_gqrx_mode:
+            # set Hamlib to gqrx mode
+            #rc = setmode(RIG_PORT, (gqrx_mode))
+            #print('Return Code from Hamlib: {0}'.format(rc))
+            # # Set fldigi to gqrx frequency
+            # if fldigi_option_set == 1:
+            #     server.main.set_frequency((gqrx_mode))
+            old_gqrx_mode = gqrx_mode
+            old_rig_mode = gqrx_mode
+    except Exception as error:
+        log_error(f"Error: {str(error)}")
+        sys.exit()
 
     # VFO
     try:
@@ -212,12 +228,14 @@ while forever:
         # print('rig VFO read: ' + str(rig_vfo))
         dummy_rig_vfo = getvfo(DUMMY_RIG_PORT)
         # print('dummy rig VFO read: ' + str(dummy_rig_vfo))
-    except Exception as error:
-        print('Error getvfo(RIG_PORT): ', type(error).__name__, "–", error)
-    if rig_vfo != old_rig_vfo:
-        # set gqrx to Hamlib vfo
-        rc = setvfo(DUMMY_RIG_PORT, rig_vfo)
-        rc = setvfo(GQRX_PORT, rig_vfo)
-        old_rig_vfo = rig_vfo
+    
+        if rig_vfo != old_rig_vfo:
+            # set gqrx to Hamlib vfo
+            rc = setvfo(DUMMY_RIG_PORT, rig_vfo)
+            rc = setvfo(GQRX_PORT, rig_vfo)
+            old_rig_vfo = rig_vfo
 
+    except Exception as error:
+        log_error(f"Error: {str(error)}")
+        sys.exit()
 
