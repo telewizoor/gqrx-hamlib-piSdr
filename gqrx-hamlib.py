@@ -23,7 +23,8 @@ RIG_PORT = 4532
 DUMMY_RIG_PORT = 4534
 GQRX_PORT = 7356
 FLDIGI_PORT = 7362
-REQUEST_PERIOD = 0.25
+REQUEST_PERIOD = 0.2
+DEBUG = 0
 
 MESSAGE = ""
 
@@ -52,7 +53,41 @@ def log_error(e):
     
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(log_path, "a", encoding="utf-8") as f:
+        print(f"[{now}] Error: {type(e).__name__}: {e}\n")
         f.write(f"[{now}] Error: {type(e).__name__}: {e}\n")
+
+def log(msg):
+    if DEBUG:
+        print(msg)
+
+def recv_until_newline(sock):
+    sock.settimeout(5.0)
+    buffer = ''
+    try:
+        while '\n' not in buffer:
+            data = sock.recv(32).decode('utf-8', errors='ignore')
+            if not data:
+                break
+            buffer += data
+    except socket.timeout:
+        print("Timeout")
+
+    line = buffer.split('\n', 1)[0]
+    return line.strip()
+
+def recv_until_last_newline(sock):
+    sock.settimeout(5.0)
+    buffer = ''
+    try:
+        while '\n' not in buffer:
+            data = sock.recv(32).decode('utf-8', errors='ignore')
+            if not data:
+                break
+            buffer += data
+    except socket.timeout:
+        print("Timeout")
+
+    return buffer.strip()
 
 def getfreq(PORT):
     sock = socket.socket(socket.AF_INET, 
@@ -62,12 +97,9 @@ def getfreq(PORT):
     sock.connect(server_address)
     sock.sendall(b'f\n')
     # Look for the response
-    amount_received = 0
-    amount_expected = 8 #len(message)
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_newline(sock)
     sock.close()
+    log('getfreq = ' + str(data))
     return data
 
 def setfreq(PORT, freq):
@@ -80,12 +112,9 @@ def setfreq(PORT, freq):
     MESSAGE = bytes(build_msg, 'utf-8')
     sock.sendall(MESSAGE)
     # Look for the response
-    amount_received = 0
-    amount_expected = 7 #len(message)
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_newline(sock)
     sock.close()
+    log('setfreq = ' + str(data))
     return data
 
 def getmode(PORT):
@@ -96,13 +125,9 @@ def getmode(PORT):
     sock.connect(server_address)
     sock.sendall(b'm\n')
     # Look for the response
-    amount_received = 0
-    amount_expected = 4 #len(message)
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_last_newline(sock)
     sock.close()
-    #print(data)
+    log('getmode = ' + str(data))
     return data
 
 def setmode(PORT, mode):
@@ -111,19 +136,15 @@ def setmode(PORT, mode):
     # Bind the socket to the port
     server_address = (TCP_IP, PORT)
     sock.connect(server_address)
-    mode = mode.decode('utf-8')
+    # mode = mode.decode('utf-8')
     build_msg = 'M ' + str(mode) + '\n'
     build_msg = build_msg.encode('utf-8')
     #print(build_msg)
     sock.sendall(build_msg)
     # Look for the response
-    amount_received = 0
-    amount_expected = 7 #len(message)
-    data = ''
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_last_newline(sock)
     sock.close()
+    log('getmode = ' + str(data))
     return data
 
 def getvfo(PORT):
@@ -134,13 +155,9 @@ def getvfo(PORT):
     sock.connect(server_address)
     sock.sendall(b'v\n')
     # Look for the response
-    amount_received = 0
-    amount_expected = 5 #len(message)
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_newline(sock)
     sock.close()
-    #print(data)
+    log('getvfo = ' + str(data))
     return data
 
 def setvfo(PORT, mode):
@@ -149,30 +166,25 @@ def setvfo(PORT, mode):
     # Bind the socket to the port
     server_address = (TCP_IP, PORT)
     sock.connect(server_address)
-    mode = mode.decode('utf-8')
+    # mode = mode.decode('utf-8')
     build_msg = 'V ' + str(mode) + '\n'
     build_msg = build_msg.encode('utf-8')
     #print(build_msg)
     sock.sendall(build_msg)
     # Look for the response
-    amount_received = 0
-    amount_expected = 7 #len(message)
-    data = ''
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+    data = recv_until_newline(sock)
     sock.close()
+    log('setvfo = ' + str(data))
     return data
 
 if fldigi_option_set == 1:
     server = xmlrpc.client.ServerProxy('http://{}:{}/'.format(TCP_IP, FLDIGI_PORT))
 
 while forever:
-    time.sleep(REQUEST_PERIOD)
-
     # FREQ
     try:
         rig_freq = getfreq(RIG_PORT)
+        log('old_rig_freq = ' + str(old_rig_freq) + ' rig_freq = ' + str(rig_freq))
         if rig_freq != old_rig_freq:
             # set gqrx to Hamlib frequency
             rc = setfreq(DUMMY_RIG_PORT, float(rig_freq))
@@ -182,6 +194,7 @@ while forever:
             old_gqrx_freq = rig_freq
             
         gqrx_freq = getfreq(GQRX_PORT)
+        log('old_gqrx_freq = ' + str(old_gqrx_freq) + ' gqrx_freq = ' + str(gqrx_freq))
         if gqrx_freq != old_gqrx_freq:
             # set Hamlib to gqrx frequency
             rc = setfreq(DUMMY_RIG_PORT, float(gqrx_freq))
@@ -194,12 +207,12 @@ while forever:
             old_rig_freq = gqrx_freq
     except Exception as error:
         log_error(f"Error: {str(error)}")
-        sys.exit()
+        # sys.exit()
 
     # MODE
     try:
         rig_mode = getmode(RIG_PORT)
-
+        log('old_rig_mode = ' + str(old_rig_mode) + ' rig_mode = ' + str(rig_mode))
         if rig_mode != old_rig_mode:
             # set gqrx to Hamlib mode
             rc = setmode(DUMMY_RIG_PORT, rig_mode)
@@ -220,12 +233,12 @@ while forever:
             old_rig_mode = gqrx_mode
     except Exception as error:
         log_error(f"Error: {str(error)}")
-        sys.exit()
+        # sys.exit()
 
     # VFO
     try:
         rig_vfo = getvfo(RIG_PORT)
-        # print('rig VFO read: ' + str(rig_vfo))
+        log('old_rig_vfo = ' + str(old_rig_vfo) + ' rig_vfo = ' + str(rig_vfo))
         dummy_rig_vfo = getvfo(DUMMY_RIG_PORT)
         # print('dummy rig VFO read: ' + str(dummy_rig_vfo))
     
@@ -237,5 +250,9 @@ while forever:
 
     except Exception as error:
         log_error(f"Error: {str(error)}")
-        sys.exit()
+        # sys.exit()
+
+    log('------------------------------------------------------------')
+    sys.stdout.flush()
+    time.sleep(REQUEST_PERIOD)
 
