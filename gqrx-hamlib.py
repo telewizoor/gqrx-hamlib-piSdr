@@ -46,6 +46,19 @@ old_rig_vfo = ''
 
 print('START')
 
+def log_error(e):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_path = os.path.join(script_dir, "error_log.txt")
+    
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # with open(log_path, "a", encoding="utf-8") as f:
+        # print(f"[{now}] Error: {type(e).__name__}: {e}\n")
+        # f.write(f"[{now}] Error: {type(e).__name__}: {e}\n")
+
+def log(msg):
+    if DEBUG:
+        print(msg)
+
 class DummyRigctldServer(threading.Thread):
     def __init__(self, host="localhost", port=4534):
         super().__init__()
@@ -165,19 +178,6 @@ class DummyRigctldServer(threading.Thread):
 # Start Dummy RIG server
 dummy_rig = DummyRigctldServer(host='0.0.0.0', port=DUMMY_RIG_PORT)
 dummy_rig.start()
-
-def log_error(e):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    log_path = os.path.join(script_dir, "error_log.txt")
-    
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_path, "a", encoding="utf-8") as f:
-        print(f"[{now}] Error: {type(e).__name__}: {e}\n")
-        f.write(f"[{now}] Error: {type(e).__name__}: {e}\n")
-
-def log(msg):
-    if DEBUG:
-        print(msg)
 
 def recv_until_newline(sock):
     sock.settimeout(5.0)
