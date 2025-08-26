@@ -15,6 +15,7 @@ cd hamlib-4.6.3
 make
 sudo make install
 sudo ldconfig
+sudo ldconfig /usr/local/lib/
 ```
 
 
